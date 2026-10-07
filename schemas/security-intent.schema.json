@@ -1,0 +1,296 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "security-intent.schema.json",
+  "title": "Security intent",
+  "description": "What should be protected, from whom, and under which conditions. Independent of the implementation: written or confirmed by the developer, never derived from what the code currently does.",
+  "type": "object",
+  "required": [
+    "schema_version",
+    "project",
+    "unconfirmed_policy",
+    "principals",
+    "endpoints"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "schema_version": {
+      "const": "0.4"
+    },
+    "project": {
+      "type": "object",
+      "required": [
+        "name"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "name": {
+          "type": "string",
+          "pattern": "^[^\\u0000-\\u001f\\u007f-\\u009f]*$",
+          "maxLength": 512
+        },
+        "root": {
+          "type": "string",
+          "pattern": "^[^\\u0000-\\u001f\\u007f-\\u009f]*$",
+          "maxLength": 512
+        }
+      }
+    },
+    "unconfirmed_policy": {
+      "description": "How inferred or unknown requirements are treated. Only one value is allowed: they are reported as unknown and never treated as permission.",
+      "const": "report_as_unknown"
+    },
+    "principals": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "required": [
+          "id",
+          "kind"
+        ],
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "$ref": "#/$defs/identifier"
+          },
+          "kind": {
+            "enum": [
+              "anonymous",
+              "user",
+              "role"
+            ]
+          },
+          "description": {
+            "type": "string",
+            "pattern": "^[^\\u0000-\\u0008\\u000b-\\u001f\\u007f-\\u009f]*$",
+            "maxLength": 4000
+          }
+        }
+      }
+    },
+    "resources": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "id"
+        ],
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "$ref": "#/$defs/identifier"
+          },
+          "description": {
+            "type": "string",
+            "pattern": "^[^\\u0000-\\u0008\\u000b-\\u001f\\u007f-\\u009f]*$",
+            "maxLength": 4000
+          },
+          "owner_field": {
+            "type": "string",
+            "description": "Field linking a record to its owning principal.",
+            "pattern": "^[^\\u0000-\\u001f\\u007f-\\u009f]*$",
+            "maxLength": 512
+          },
+          "sensitive_fields": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "pattern": "^[^\\u0000-\\u001f\\u007f-\\u009f]*$",
+              "maxLength": 512
+            }
+          }
+        }
+      }
+    },
+    "endpoints": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "$ref": "#/$defs/endpoint"
+      }
+    }
+  },
+  "$defs": {
+    "identifier": {
+      "type": "string",
+      "pattern": "^[a-z][a-z0-9_.-]*$"
+    },
+    "endpoint": {
+      "type": "object",
+      "required": [
+        "id",
+        "method",
+        "path",
+        "requirements"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "$ref": "#/$defs/identifier"
+        },
+        "method": {
+          "enum": [
+            "GET",
+            "POST",
+            "PUT",
+            "PATCH",
+            "DELETE",
+            "HEAD",
+            "OPTIONS",
+            "ANY"
+          ]
+        },
+        "path": {
+          "type": "string",
+          "maxLength": 512,
+          "pattern": "^/[A-Za-z0-9._~!$&'()*+,;=:@%{}/-]*$",
+          "description": "URL path: RFC 3986 path characters plus {param} templates. No quotes, whitespace, or backslashes (defense in depth; rendering escapes regardless)."
+        },
+        "requirements": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "$ref": "#/$defs/requirement"
+          }
+        }
+      }
+    },
+    "requirement": {
+      "type": "object",
+      "required": [
+        "id",
+        "control_id",
+        "policy",
+        "provenance"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "$ref": "#/$defs/identifier"
+        },
+        "control_id": {
+          "type": "string",
+          "pattern": "^[A-Z][A-Z0-9-]+$"
+        },
+        "policy": {
+          "$ref": "#/$defs/policy"
+        },
+        "provenance": {
+          "$ref": "#/$defs/provenance"
+        }
+      }
+    },
+    "policy": {
+      "oneOf": [
+        {
+          "type": "object",
+          "required": [
+            "kind"
+          ],
+          "additionalProperties": false,
+          "properties": {
+            "kind": {
+              "const": "public"
+            }
+          }
+        },
+        {
+          "type": "object",
+          "required": [
+            "kind"
+          ],
+          "additionalProperties": false,
+          "properties": {
+            "kind": {
+              "const": "authenticated"
+            }
+          }
+        },
+        {
+          "type": "object",
+          "required": [
+            "kind",
+            "role"
+          ],
+          "additionalProperties": false,
+          "properties": {
+            "kind": {
+              "const": "role"
+            },
+            "role": {
+              "$ref": "#/$defs/identifier"
+            }
+          }
+        },
+        {
+          "type": "object",
+          "required": [
+            "kind",
+            "resource",
+            "via_param"
+          ],
+          "additionalProperties": false,
+          "properties": {
+            "kind": {
+              "const": "owner_of"
+            },
+            "resource": {
+              "$ref": "#/$defs/identifier"
+            },
+            "via_param": {
+              "type": "string",
+              "description": "Path or query parameter identifying the record.",
+              "pattern": "^[^\\u0000-\\u001f\\u007f-\\u009f]*$",
+              "maxLength": 512
+            }
+          }
+        },
+        {
+          "type": "object",
+          "required": [
+            "kind"
+          ],
+          "additionalProperties": false,
+          "properties": {
+            "kind": {
+              "const": "unknown"
+            }
+          }
+        }
+      ]
+    },
+    "provenance": {
+      "type": "object",
+      "required": [
+        "source",
+        "by",
+        "at"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "source": {
+          "enum": [
+            "confirmed",
+            "inferred"
+          ],
+          "description": "confirmed = stated or approved by the developer. inferred = proposed by an agent or tool; never sufficient for a pass or a violation."
+        },
+        "by": {
+          "type": "string",
+          "description": "Who confirmed it, or which tool inferred it.",
+          "pattern": "^[^\\u0000-\\u001f\\u007f-\\u009f]*$",
+          "maxLength": 512
+        },
+        "at": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "rationale": {
+          "type": "string",
+          "pattern": "^[^\\u0000-\\u0008\\u000b-\\u001f\\u007f-\\u009f]*$",
+          "maxLength": 4000
+        }
+      }
+    }
+  }
+}

@@ -1,0 +1,96 @@
+schema_version: "0.4"
+pack_id: fastapi-pyjwt-pwdlib
+pack_version: 0.4.2
+kind: recipe
+
+components:
+  - { role: framework, ecosystem: PyPI, package: fastapi, supported_versions: ">=0.110,<1.0" }
+  - { role: library,   ecosystem: PyPI, package: pyjwt,   supported_versions: ">=2.8,<3.0" }
+  - { role: library,   ecosystem: PyPI, package: pwdlib,  supported_versions: ">=0.2,<1.0" }
+
+detection:
+  version_sources: [lockfile, environment, pinned_manifest, unpinned_manifest]
+  lockfiles: [uv.lock, poetry.lock, Pipfile.lock, requirements.txt]
+  import_markers: ["import jwt", "from fastapi import", "from pwdlib import"]
+
+checks:
+  - id: token-verify-disabled
+    kind: static_rule
+    engine: opengrep
+    rule_file: rules/pyjwt.yaml
+    rule_id: pyjwt-verify-signature-disabled
+    control_id: TOKEN-INTEGRITY
+    establishes: suspicious_pattern
+    cannot_establish:
+      - That the unverified claims are trusted for identity or authorization (needs a behavioral forged-token test)
+      - Options passed through **kwargs or built in another function
+      - That other jwt.decode call sites are safe
+    samples:
+      should_match: samples/token_vulnerable.py
+      expected_lines: [6, 9, 13]
+      should_not_match: samples/token_safe.py
+
+  - id: route-depends-on
+    kind: structural_check
+    engine: opengrep
+    rule_file: rules/structural.yaml
+    rule_id: fastapi-route-depends-on
+    control_id: AUTHN-ENDPOINT
+    params:
+      - { name: method,     pattern: "^(get|post|put|patch|delete|head|options)$" }
+      - { name: path,       pattern: "^/[A-Za-z0-9_{}/.-]*$" }
+      - { name: dependency, pattern: "^[A-Za-z_][A-Za-z0-9_.]*$" }
+    establishes: structural_link
+    cannot_establish:
+      - That the referenced dependency performs authentication at all
+      - That every execution path passes through the dependency
+      - That a failed check stops execution
+      - That the authenticated principal may access the requested record
+      - Protection applied at router or app level (not linked = needs review, not a violation)
+    samples:
+      should_match: samples/routes_linked.py
+      expected_lines: [9, 13, 17]
+      should_not_match: samples/routes_unlinked.py
+      params: { method: get, path: "/documents/{doc_id}", dependency: get_current_user }
+
+recipes:
+  - id: verify-token
+    control_id: TOKEN-INTEGRITY
+    file: recipes/verify_token.py
+    tested_versions: { fastapi: "0.142.2", pyjwt: "2.15.1" }
+
+test_templates:
+  - id: authn-endpoint
+    control_id: AUTHN-ENDPOINT
+    supported_policies: [authenticated]
+    denied_statuses: [401, 403]
+    response_assumptions:
+      - The status is the endpoint's own first response; redirects are not followed
+      - A 2xx response to the protected path means its protected content was served
+      - A 3xx response is not evaluated by this template; it yields Unknown, never a pass or violation
+    placeholders:
+      app_module: module_path
+      app_object: identifier
+      concrete_path: python_string
+      test_key: python_string
+      test_audience: python_string
+      method: http_method
+      expect_ok_status: http_status
+    file: test-templates/authn_endpoint.py.tmpl
+    template_version: 0.3.3
+    scenarios:
+      - { id: valid-token,   control_role: positive_control, principal: valid_user,    expect_status: 200, junit_testcase: test_valid_token_is_accepted }
+      - { id: missing-token, control_role: negative_control, principal: anonymous,     expect_status: 401, junit_testcase: test_missing_token_is_rejected }
+      - { id: expired-token, control_role: negative_control, principal: expired_token, expect_status: 401, junit_testcase: test_expired_token_is_rejected }
+      - { id: bad-signature, control_role: negative_control, principal: forged_token,  expect_status: 401, junit_testcase: test_bad_signature_is_rejected }
+
+capabilities:
+  - { control_id: TOKEN-INTEGRITY, methods: [static_rule] }
+  - { control_id: AUTHN-ENDPOINT,  methods: [structural_check, behavioral_test] }
+  - { control_id: AUTHZ-OWNERSHIP, methods: [agent_review] }
+
+limitations:
+  - No static rule in this pack proves a violation on its own; PyJWT >=2 already rejects missing algorithms and alg=none
+  - Router-level and app-level dependencies are not resolved
+  - Ownership (AUTHZ-OWNERSHIP) has no behavioral template yet; agent review only
+  - PASSWORD-STORAGE checks for pwdlib are planned, not shipped

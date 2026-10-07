@@ -1,0 +1,48 @@
+schema_version: "0.4"
+project: { name: docs-api, root: . }
+unconfirmed_policy: report_as_unknown
+
+principals:
+  - { id: anonymous, kind: anonymous }
+  - { id: user, kind: user, description: Any signed-in account }
+
+resources:
+  - id: documents
+    owner_field: owner_id
+    sensitive_fields: [body, title]
+
+endpoints:
+  - id: health
+    method: GET
+    path: /health
+    requirements:
+      - id: health-public
+        control_id: AUTHN-ENDPOINT
+        policy: { kind: public }
+        provenance: { source: confirmed, by: harris, at: "2026-10-05T09:00:00Z" }
+
+  - id: read-document
+    method: GET
+    path: /documents/{doc_id}
+    requirements:
+      - id: read-document-authn          # identity: who are you?
+        control_id: AUTHN-ENDPOINT
+        policy: { kind: authenticated }
+        provenance: { source: confirmed, by: harris, at: "2026-10-05T09:00:00Z" }
+      - id: read-document-owner          # permission: may you see THIS record?
+        control_id: AUTHZ-OWNERSHIP
+        policy: { kind: owner_of, resource: documents, via_param: doc_id }
+        provenance: { source: confirmed, by: harris, at: "2026-10-05T09:00:00Z" }
+
+  - id: export
+    method: GET
+    path: /exports
+    requirements:
+      - id: export-authn
+        control_id: AUTHN-ENDPOINT
+        policy: { kind: unknown }
+        provenance:
+          source: inferred
+          by: draft_intent
+          at: "2026-10-05T08:55:00Z"
+          rationale: Route has no auth dependency; cannot tell if that is intended.

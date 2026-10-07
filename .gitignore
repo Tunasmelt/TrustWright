@@ -1,0 +1,29 @@
+.venv*/
+build/
+dist/
+*.egg-info/
+__pycache__/
+*.pyc
+.pytest_cache/
+.ruff_cache/
+.trustwright/
+release-validation/
+
+# Release packaging writes a root checksum file; fixture SHA256SUMS stay tracked
+/SHA256SUMS
+trustwright-m1a-*.zip
+
+# Maintainer-only workflow notes (Codex prompts, review loop); keep out of the public repo
+CODEX-PROMPTS.md
+
+# Local secrets and environments
+.env
+.env.*
+.venv/
+
+# OS and editor files
+Thumbs.db
+desktop.ini
+.DS_Store
+.vscode/
+.idea/

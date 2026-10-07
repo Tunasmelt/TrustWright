@@ -1,0 +1,4 @@
+# Keep LF everywhere: fixture SHA256SUMS and exact-line rule samples depend on byte-exact files.
+* text=auto eol=lf
+*.zip binary
+*.whl binary

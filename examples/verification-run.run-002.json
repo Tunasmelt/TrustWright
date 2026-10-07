@@ -1,0 +1,113 @@
+{
+  "schema_version": "0.4",
+  "run_id": "RUN-002",
+  "created_at": "2026-10-07T10:10:48Z",
+  "workspace_snapshot": {
+    "head_commit": null,
+    "has_uncommitted_changes": true,
+    "tree_digest": {
+      "algorithm": "sha256-sorted-entries-v2",
+      "value": "274b9a48f0ae6014f4843bcc9d47998ab88085e657d49bf5e5c317b0f4e0fc12",
+      "file_count": 4,
+      "includes_untracked": true
+    }
+  },
+  "test_artifact": {
+    "path": ".trustwright/tests/test_read_document_authn.py",
+    "sha256": "c078aad8b3aada95c55e2f0c4b482233b0e7e72e32d9a04b1a6003de5c5f5fe6",
+    "template": {
+      "pack_id": "fastapi-pyjwt-pwdlib",
+      "template_id": "authn-endpoint",
+      "template_version": "0.3.3"
+    }
+  },
+  "runner": {
+    "kind": "agent_reported",
+    "command": "pytest -q -p no:cacheprovider --noconftest -c .trustwright/tests/trustwright-pytest.ini --rootdir .trustwright/tests .trustwright/tests/test_read_document_authn.py --junitxml=.trustwright/results/RUN-002.xml",
+    "observed_by_server": false,
+    "environment": {
+      "python": "3.12.3",
+      "fastapi": "0.142.2",
+      "pyjwt": "2.15.1"
+    }
+  },
+  "results_artifact": {
+    "format": "junit_xml",
+    "path": ".trustwright/results/RUN-002.xml",
+    "sha256": "f0a89fd04c91d9f5bcbb1f56cc473520cf4e842a0409068a68a6dcbd671f027c",
+    "modified_at": "2026-10-07T10:10:48Z"
+  },
+  "consistency_checks": [
+    {
+      "check": "results_newer_than_test_artifact",
+      "passed": true
+    },
+    {
+      "check": "testcase_names_match_template",
+      "passed": true
+    },
+    {
+      "check": "testcase_count_matches_template",
+      "passed": true
+    },
+    {
+      "check": "snapshot_matches_current_workspace",
+      "passed": true
+    }
+  ],
+  "evidence_validation": "reported",
+  "scenarios": [
+    {
+      "id": "valid-token",
+      "intent_ref": {
+        "endpoint_id": "read-document",
+        "requirement_id": "read-document-authn"
+      },
+      "control_role": "positive_control",
+      "principal": "valid_user",
+      "expect_status": 200,
+      "observed_status": 200,
+      "outcome": "passed",
+      "junit_testcase": "test_valid_token_is_accepted"
+    },
+    {
+      "id": "missing-token",
+      "intent_ref": {
+        "endpoint_id": "read-document",
+        "requirement_id": "read-document-authn"
+      },
+      "control_role": "negative_control",
+      "principal": "anonymous",
+      "expect_status": 401,
+      "observed_status": 401,
+      "outcome": "passed",
+      "junit_testcase": "test_missing_token_is_rejected"
+    },
+    {
+      "id": "expired-token",
+      "intent_ref": {
+        "endpoint_id": "read-document",
+        "requirement_id": "read-document-authn"
+      },
+      "control_role": "negative_control",
+      "principal": "expired_token",
+      "expect_status": 401,
+      "observed_status": 401,
+      "outcome": "passed",
+      "junit_testcase": "test_expired_token_is_rejected"
+    },
+    {
+      "id": "bad-signature",
+      "intent_ref": {
+        "endpoint_id": "read-document",
+        "requirement_id": "read-document-authn"
+      },
+      "control_role": "negative_control",
+      "principal": "forged_token",
+      "expect_status": 401,
+      "observed_status": 401,
+      "outcome": "passed",
+      "junit_testcase": "test_bad_signature_is_rejected"
+    }
+  ]
+}

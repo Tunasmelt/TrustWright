@@ -1,0 +1,482 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "pack-manifest.schema.json",
+  "title": "Pack manifest",
+  "description": "What a pack supports and what it can actually verify. Packs are declarative: rules, templates, and recipes only. No executable hooks.",
+  "type": "object",
+  "required": [
+    "schema_version",
+    "pack_id",
+    "pack_version",
+    "kind",
+    "components",
+    "detection",
+    "checks",
+    "capabilities",
+    "limitations"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "schema_version": {
+      "const": "0.4"
+    },
+    "pack_id": {
+      "type": "string",
+      "pattern": "^[a-z0-9][a-z0-9-]+$"
+    },
+    "pack_version": {
+      "type": "string",
+      "pattern": "^[0-9]+\\.[0-9]+\\.[0-9]+$"
+    },
+    "kind": {
+      "enum": [
+        "recipe"
+      ],
+      "description": "v0.1 ships combined recipe packs only. framework/library/provider kinds are reserved until a second integration shows where the seams are."
+    },
+    "components": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "required": [
+          "role",
+          "ecosystem",
+          "package",
+          "supported_versions"
+        ],
+        "additionalProperties": false,
+        "properties": {
+          "role": {
+            "enum": [
+              "framework",
+              "library",
+              "provider"
+            ]
+          },
+          "ecosystem": {
+            "enum": [
+              "PyPI",
+              "npm",
+              "Go",
+              "Maven",
+              "crates.io",
+              "RubyGems",
+              "Packagist",
+              "NuGet"
+            ]
+          },
+          "package": {
+            "type": "string",
+            "pattern": "^[^\\u0000-\\u001f\\u007f-\\u009f]*$",
+            "maxLength": 512
+          },
+          "supported_versions": {
+            "type": "string",
+            "description": "PEP 440 / semver range the pack was tested against.",
+            "pattern": "^[^\\u0000-\\u001f\\u007f-\\u009f]*$",
+            "maxLength": 512
+          }
+        }
+      }
+    },
+    "detection": {
+      "type": "object",
+      "required": [
+        "version_sources"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "version_sources": {
+          "type": "array",
+          "items": {
+            "enum": [
+              "lockfile",
+              "environment",
+              "pinned_manifest",
+              "unpinned_manifest"
+            ]
+          },
+          "description": "Ordered by trust. Findings record which source resolved each version."
+        },
+        "lockfiles": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "pattern": "^[^\\u0000-\\u001f\\u007f-\\u009f]*$",
+            "maxLength": 512
+          }
+        },
+        "import_markers": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "pattern": "^[^\\u0000-\\u001f\\u007f-\\u009f]*$",
+            "maxLength": 512
+          }
+        }
+      }
+    },
+    "checks": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "id",
+          "kind",
+          "engine",
+          "rule_file",
+          "rule_id",
+          "control_id",
+          "establishes",
+          "cannot_establish",
+          "samples"
+        ],
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "type": "string",
+            "pattern": "^[^\\u0000-\\u001f\\u007f-\\u009f]*$",
+            "maxLength": 512
+          },
+          "kind": {
+            "enum": [
+              "static_rule",
+              "structural_check"
+            ]
+          },
+          "engine": {
+            "enum": [
+              "opengrep"
+            ]
+          },
+          "rule_file": {
+            "type": "string",
+            "pattern": "^[^\\u0000-\\u001f\\u007f-\\u009f]*$",
+            "maxLength": 512
+          },
+          "rule_id": {
+            "type": "string",
+            "pattern": "^[^\\u0000-\\u001f\\u007f-\\u009f]*$",
+            "maxLength": 512
+          },
+          "control_id": {
+            "type": "string",
+            "pattern": "^[^\\u0000-\\u001f\\u007f-\\u009f]*$",
+            "maxLength": 512
+          },
+          "params": {
+            "type": "array",
+            "description": "Named, typed parameters the server substitutes. The agent may supply values, never rule logic.",
+            "items": {
+              "type": "object",
+              "required": [
+                "name",
+                "pattern"
+              ],
+              "additionalProperties": false,
+              "properties": {
+                "name": {
+                  "type": "string",
+                  "pattern": "^[^\\u0000-\\u001f\\u007f-\\u009f]*$",
+                  "maxLength": 512
+                },
+                "pattern": {
+                  "type": "string",
+                  "description": "Regex every supplied value must match, to block pattern injection.",
+                  "pattern": "^[^\\u0000-\\u001f\\u007f-\\u009f]*$",
+                  "maxLength": 512
+                }
+              }
+            }
+          },
+          "establishes": {
+            "enum": [
+              "specific_violation",
+              "suspicious_pattern",
+              "structural_link"
+            ]
+          },
+          "cannot_establish": {
+            "type": "array",
+            "minItems": 1,
+            "items": {
+              "type": "string",
+              "pattern": "^[^\\u0000-\\u001f\\u007f-\\u009f]*$",
+              "maxLength": 512
+            }
+          },
+          "samples": {
+            "type": "object",
+            "required": [
+              "should_match",
+              "expected_lines",
+              "should_not_match"
+            ],
+            "additionalProperties": false,
+            "properties": {
+              "should_match": {
+                "type": "string",
+                "pattern": "^[^\\u0000-\\u001f\\u007f-\\u009f]*$",
+                "maxLength": 512
+              },
+              "should_not_match": {
+                "type": "string",
+                "pattern": "^[^\\u0000-\\u001f\\u007f-\\u009f]*$",
+                "maxLength": 512
+              },
+              "params": {
+                "type": "object",
+                "additionalProperties": {
+                  "type": "string",
+                  "pattern": "^[^\\u0000-\\u001f\\u007f-\\u009f]*$",
+                  "maxLength": 512
+                },
+                "description": "Values substituted into a structural check when running its samples."
+              },
+              "expected_lines": {
+                "type": "array",
+                "minItems": 1,
+                "uniqueItems": true,
+                "items": {
+                  "type": "integer",
+                  "minimum": 1
+                },
+                "description": "Exact start lines the rule must match in should_match."
+              }
+            }
+          }
+        }
+      }
+    },
+    "recipes": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "id",
+          "control_id",
+          "file",
+          "tested_versions"
+        ],
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "type": "string",
+            "pattern": "^[^\\u0000-\\u001f\\u007f-\\u009f]*$",
+            "maxLength": 512
+          },
+          "control_id": {
+            "type": "string",
+            "pattern": "^[^\\u0000-\\u001f\\u007f-\\u009f]*$",
+            "maxLength": 512
+          },
+          "file": {
+            "type": "string",
+            "pattern": "^[^\\u0000-\\u001f\\u007f-\\u009f]*$",
+            "maxLength": 512
+          },
+          "tested_versions": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "string",
+              "pattern": "^[^\\u0000-\\u001f\\u007f-\\u009f]*$",
+              "maxLength": 512
+            }
+          }
+        }
+      }
+    },
+    "test_templates": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "id",
+          "control_id",
+          "file",
+          "template_version",
+          "scenarios",
+          "supported_policies",
+          "denied_statuses",
+          "response_assumptions",
+          "placeholders"
+        ],
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "type": "string",
+            "pattern": "^[^\\u0000-\\u001f\\u007f-\\u009f]*$",
+            "maxLength": 512
+          },
+          "control_id": {
+            "type": "string",
+            "pattern": "^[^\\u0000-\\u001f\\u007f-\\u009f]*$",
+            "maxLength": 512
+          },
+          "file": {
+            "type": "string",
+            "pattern": "^[^\\u0000-\\u001f\\u007f-\\u009f]*$",
+            "maxLength": 512
+          },
+          "template_version": {
+            "type": "string",
+            "pattern": "^[^\\u0000-\\u001f\\u007f-\\u009f]*$",
+            "maxLength": 512
+          },
+          "scenarios": {
+            "type": "array",
+            "minItems": 2,
+            "items": {
+              "type": "object",
+              "required": [
+                "id",
+                "control_role",
+                "principal",
+                "expect_status",
+                "junit_testcase"
+              ],
+              "additionalProperties": false,
+              "properties": {
+                "id": {
+                  "type": "string",
+                  "pattern": "^[^\\u0000-\\u001f\\u007f-\\u009f]*$",
+                  "maxLength": 512
+                },
+                "control_role": {
+                  "enum": [
+                    "positive_control",
+                    "negative_control"
+                  ]
+                },
+                "principal": {
+                  "type": "string",
+                  "pattern": "^[^\\u0000-\\u001f\\u007f-\\u009f]*$",
+                  "maxLength": 512
+                },
+                "expect_status": {
+                  "type": "integer"
+                },
+                "junit_testcase": {
+                  "type": "string",
+                  "pattern": "^[^\\u0000-\\u001f\\u007f-\\u009f]*$",
+                  "maxLength": 512
+                }
+              }
+            },
+            "allOf": [
+              {
+                "contains": {
+                  "properties": {
+                    "control_role": {
+                      "const": "positive_control"
+                    }
+                  }
+                }
+              },
+              {
+                "contains": {
+                  "properties": {
+                    "control_role": {
+                      "const": "negative_control"
+                    }
+                  }
+                }
+              }
+            ]
+          },
+          "supported_policies": {
+            "type": "array",
+            "minItems": 1,
+            "items": {
+              "enum": [
+                "authenticated",
+                "role",
+                "owner_of"
+              ]
+            },
+            "description": "Intent policy kinds this template can verify. Authentication templates never verify ownership."
+          },
+          "denied_statuses": {
+            "type": "array",
+            "minItems": 1,
+            "uniqueItems": true,
+            "items": {
+              "type": "integer",
+              "minimum": 400,
+              "maximum": 499
+            },
+            "description": "Statuses meaning access was refused. A negative control is a security failure only if access was granted (2xx); a refused-but-different status is an assertion mismatch, and 5xx is an error."
+          },
+          "response_assumptions": {
+            "type": "array",
+            "minItems": 1,
+            "items": {
+              "type": "string",
+              "pattern": "^[^\\u0000-\\u001f\\u007f-\\u009f]*$",
+              "maxLength": 512
+            },
+            "description": "What a recorded status is taken to mean. Verdicts hold only under these assumptions; reports must carry them."
+          },
+          "placeholders": {
+            "type": "object",
+            "minProperties": 1,
+            "propertyNames": {
+              "pattern": "^[a-z][a-z0-9_]*$"
+            },
+            "additionalProperties": {
+              "enum": [
+                "python_string",
+                "identifier",
+                "module_path",
+                "http_method",
+                "http_status"
+              ]
+            },
+            "description": "Every placeholder in the template file, with its type. tools/render.py emits strings as escaped literals and validates every other type; the template file must use exactly these names."
+          }
+        }
+      }
+    },
+    "capabilities": {
+      "type": "array",
+      "description": "Per control: which methods this pack can apply. Controls not listed are an explicit coverage gap.",
+      "items": {
+        "type": "object",
+        "required": [
+          "control_id",
+          "methods"
+        ],
+        "additionalProperties": false,
+        "properties": {
+          "control_id": {
+            "type": "string",
+            "pattern": "^[^\\u0000-\\u001f\\u007f-\\u009f]*$",
+            "maxLength": 512
+          },
+          "methods": {
+            "type": "array",
+            "minItems": 1,
+            "items": {
+              "enum": [
+                "static_rule",
+                "structural_check",
+                "behavioral_test",
+                "agent_review"
+              ]
+            }
+          }
+        }
+      }
+    },
+    "limitations": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "string",
+        "pattern": "^[^\\u0000-\\u0008\\u000b-\\u001f\\u007f-\\u009f]*$",
+        "maxLength": 4000
+      }
+    }
+  }
+}

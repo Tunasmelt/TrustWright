@@ -1,0 +1,66 @@
+# Generated from template authn-endpoint v0.3.3 (pack fastapi-pyjwt-pwdlib).
+# Placeholders are filled by tools/render.py from security-intent.yaml. Each has a declared
+# type in pack.yaml: strings arrive as escaped Python literals, so there are no quotes here.
+# Positive and negative controls are BOTH required: an endpoint that rejects
+# everyone would pass every negative test.
+# Each test records the status it actually observed (record_property ->
+# <property name="observed_status"> in JUnit XML) before asserting, so the
+# run document never has to infer it.
+# Redirects are NOT followed: the status recorded is the protected endpoint's
+# own first response. Following a redirect to a public login page would record
+# that page's 200 and misreport a correctly protected endpoint as a bypass.
+# Tokens are forged with the standard library, never `import jwt`: a project module named
+# jwt.py would shadow PyJWT here, while the app itself must keep importing exactly as in production.
+import base64
+import hashlib
+import hmac
+import json
+import time
+from fastapi.testclient import TestClient
+from {{app_module}} import {{app_object}} as app
+
+client = TestClient(app, follow_redirects=False)
+PATH = {{concrete_path}}
+KEY, AUD = {{test_key}}, {{test_audience}}
+
+
+def _b64(data: bytes) -> str:
+    return base64.urlsafe_b64encode(data).rstrip(b"=").decode()
+
+
+def _hs256(claims: dict, key: str) -> str:
+    header = _b64(json.dumps({"alg": "HS256", "typ": "JWT"}, separators=(",", ":")).encode())
+    payload = _b64(json.dumps(claims, separators=(",", ":")).encode())
+    signature = hmac.new(key.encode(), f"{header}.{payload}".encode(), hashlib.sha256).digest()
+    return f"{header}.{payload}.{_b64(signature)}"
+
+
+def _token(**overrides):
+    claims = {"sub": "user-a", "aud": AUD, "exp": int(time.time()) + 300}
+    claims.update(overrides)
+    return _hs256(claims, KEY)
+
+
+def _call(record_property, headers=None):
+    r = client.{{method}}(PATH, headers=headers or {})
+    record_property("observed_status", r.status_code)
+    return r.status_code
+
+
+def test_valid_token_is_accepted(record_property):              # positive_control
+    assert _call(record_property, {"Authorization": f"Bearer {_token()}"}) == {{expect_ok_status}}
+
+
+def test_missing_token_is_rejected(record_property):            # negative_control
+    assert _call(record_property) == 401
+
+
+def test_expired_token_is_rejected(record_property):            # negative_control
+    t = _token(exp=int(time.time()) - 60)
+    assert _call(record_property, {"Authorization": f"Bearer {t}"}) == 401
+
+
+def test_bad_signature_is_rejected(record_property):            # negative_control
+    t = _hs256({"sub": "user-a", "aud": AUD, "exp": int(time.time()) + 300},
+               "wrong-key-0123456789abcdef0123456789")
+    assert _call(record_property, {"Authorization": f"Bearer {t}"}) == 401

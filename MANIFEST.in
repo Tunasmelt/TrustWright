@@ -1,0 +1,5 @@
+recursive-include schemas *.json
+recursive-include catalogue *.yaml
+recursive-include packs *.yaml *.py *.tmpl
+recursive-include tools *.py
+include FINDINGS.md CHANGELOG.md

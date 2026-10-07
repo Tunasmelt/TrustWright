@@ -1,0 +1,876 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "finding.schema.json",
+  "title": "Finding (evidence and assessment)",
+  "description": "What was observed, how it was checked, and what conclusion it supports. The display label is derived from result, method, evidence, and server-owned trust records; the stored copy is checked by the validator.",
+  "type": "object",
+  "required": [
+    "id",
+    "control_id",
+    "intent_ref",
+    "scope",
+    "result",
+    "method",
+    "evidence",
+    "display",
+    "limitations"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "id": {
+      "type": "string",
+      "pattern": "^F-[0-9]{3,}$"
+    },
+    "control_id": {
+      "type": "string",
+      "pattern": "^[A-Z][A-Z0-9-]+$"
+    },
+    "intent_ref": {
+      "description": "Required for endpoint-scoped controls; null for codebase-scoped controls.",
+      "oneOf": [
+        {
+          "type": "null"
+        },
+        {
+          "type": "object",
+          "required": [
+            "endpoint_id",
+            "requirement_id"
+          ],
+          "additionalProperties": false,
+          "properties": {
+            "endpoint_id": {
+              "type": "string",
+              "pattern": "^[^\\u0000-\\u001f\\u007f-\\u009f]*$",
+              "maxLength": 512
+            },
+            "requirement_id": {
+              "type": "string",
+              "pattern": "^[^\\u0000-\\u001f\\u007f-\\u009f]*$",
+              "maxLength": 512
+            }
+          }
+        }
+      ]
+    },
+    "scope": {
+      "type": "object",
+      "required": [
+        "kind",
+        "ref"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "kind": {
+          "enum": [
+            "endpoint",
+            "function",
+            "configuration",
+            "dependency",
+            "test_scenario",
+            "codebase"
+          ]
+        },
+        "ref": {
+          "type": "string",
+          "description": "What exactly this finding covers. A finding never speaks beyond its scope.",
+          "pattern": "^[^\\u0000-\\u001f\\u007f-\\u009f]*$",
+          "maxLength": 512
+        },
+        "locations": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/location"
+          }
+        }
+      }
+    },
+    "result": {
+      "enum": [
+        "violated",
+        "satisfied",
+        "unknown",
+        "not_applicable"
+      ]
+    },
+    "method": {
+      "enum": [
+        "static_rule",
+        "structural_check",
+        "dependency_advisory",
+        "agent_review",
+        "behavioral_test",
+        "human_review",
+        "intent_review"
+      ]
+    },
+    "severity": {
+      "enum": [
+        "low",
+        "medium",
+        "high",
+        "critical"
+      ]
+    },
+    "evidence": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/evidence"
+      },
+      "minItems": 1
+    },
+    "display": {
+      "type": "object",
+      "required": [
+        "outcome",
+        "status"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "outcome": {
+          "enum": [
+            "issue_found",
+            "check_passed",
+            "test_passed",
+            "needs_review",
+            "unknown"
+          ]
+        },
+        "status": {
+          "enum": [
+            "confirmed",
+            "reproduced",
+            "reported",
+            "pattern_matched",
+            "structurally_linked",
+            "not_linked",
+            "agent_assessed",
+            "intent_missing",
+            "version_unresolved",
+            "human_reviewed"
+          ]
+        }
+      }
+    },
+    "limitations": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "pattern": "^[^\\u0000-\\u0008\\u000b-\\u001f\\u007f-\\u009f]*$",
+        "maxLength": 4000
+      },
+      "description": "What this finding does NOT establish. Required to be non-empty for anything other than a confirmed issue (enforced by the validator)."
+    },
+    "recipe_ref": {
+      "type": "object",
+      "required": [
+        "pack_id",
+        "recipe_id"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "pack_id": {
+          "type": "string",
+          "pattern": "^[^\\u0000-\\u001f\\u007f-\\u009f]*$",
+          "maxLength": 512
+        },
+        "recipe_id": {
+          "type": "string",
+          "pattern": "^[^\\u0000-\\u001f\\u007f-\\u009f]*$",
+          "maxLength": 512
+        }
+      }
+    }
+  },
+  "allOf": [
+    {
+      "description": "Only behavioral tests and human review can establish that a requirement is satisfied.",
+      "if": {
+        "properties": {
+          "result": {
+            "const": "satisfied"
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "method": {
+            "enum": [
+              "behavioral_test",
+              "human_review"
+            ]
+          }
+        }
+      }
+    },
+    {
+      "description": "A static rule establishes a violation (specific-violation checks) or flags for review (suspicious-pattern checks). A non-match produces no finding.",
+      "if": {
+        "properties": {
+          "method": {
+            "const": "static_rule"
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "result": {
+            "enum": [
+              "violated",
+              "unknown"
+            ]
+          }
+        }
+      }
+    },
+    {
+      "description": "A structural link is a connection, not proof of protection; its absence is not proof of a violation.",
+      "if": {
+        "properties": {
+          "method": {
+            "const": "structural_check"
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "result": {
+            "const": "unknown"
+          }
+        }
+      }
+    },
+    {
+      "description": "An agent's interpretation is always displayed as agent-assessed, whatever it concluded.",
+      "if": {
+        "properties": {
+          "method": {
+            "const": "agent_review"
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "display": {
+            "properties": {
+              "status": {
+                "const": "agent_assessed"
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "description": "An advisory either applies to a resolved version or the version could not be resolved.",
+      "if": {
+        "properties": {
+          "method": {
+            "const": "dependency_advisory"
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "result": {
+            "enum": [
+              "violated",
+              "unknown"
+            ]
+          }
+        }
+      }
+    },
+    {
+      "description": "A missing or unconfirmed intent can only ever produce Unknown.",
+      "if": {
+        "properties": {
+          "method": {
+            "const": "intent_review"
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "result": {
+            "const": "unknown"
+          },
+          "display": {
+            "properties": {
+              "status": {
+                "const": "intent_missing"
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "description": "static_rule findings cite rule_match evidence, and only that.",
+      "if": {
+        "properties": {
+          "method": {
+            "const": "static_rule"
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "evidence": {
+            "items": {
+              "properties": {
+                "type": {
+                  "const": "rule_match"
+                }
+              }
+            },
+            "contains": {
+              "properties": {
+                "type": {
+                  "const": "rule_match"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "description": "structural_check findings cite structural_link evidence, and only that.",
+      "if": {
+        "properties": {
+          "method": {
+            "const": "structural_check"
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "evidence": {
+            "items": {
+              "properties": {
+                "type": {
+                  "const": "structural_link"
+                },
+                "binding_source": {
+                  "enum": [
+                    "static_discovery",
+                    "agent_supplied",
+                    "legacy_unspecified"
+                  ]
+                },
+                "authentication_semantics": {
+                  "const": "unverified"
+                }
+              }
+            },
+            "contains": {
+              "properties": {
+                "type": {
+                  "const": "structural_link"
+                },
+                "binding_source": {
+                  "enum": [
+                    "static_discovery",
+                    "agent_supplied",
+                    "legacy_unspecified"
+                  ]
+                },
+                "authentication_semantics": {
+                  "const": "unverified"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "description": "dependency_advisory findings cite advisory evidence, and only that.",
+      "if": {
+        "properties": {
+          "method": {
+            "const": "dependency_advisory"
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "evidence": {
+            "items": {
+              "properties": {
+                "type": {
+                  "const": "advisory"
+                }
+              }
+            },
+            "contains": {
+              "properties": {
+                "type": {
+                  "const": "advisory"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "description": "agent_review findings cite agent_citation evidence, and only that.",
+      "if": {
+        "properties": {
+          "method": {
+            "const": "agent_review"
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "evidence": {
+            "items": {
+              "properties": {
+                "type": {
+                  "const": "agent_citation"
+                }
+              }
+            },
+            "contains": {
+              "properties": {
+                "type": {
+                  "const": "agent_citation"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "description": "behavioral_test findings cite verification_run evidence, and only that.",
+      "if": {
+        "properties": {
+          "method": {
+            "const": "behavioral_test"
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "evidence": {
+            "items": {
+              "properties": {
+                "type": {
+                  "const": "verification_run"
+                }
+              }
+            },
+            "contains": {
+              "properties": {
+                "type": {
+                  "const": "verification_run"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "description": "human_review findings cite human_attestation evidence, and only that.",
+      "if": {
+        "properties": {
+          "method": {
+            "const": "human_review"
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "evidence": {
+            "items": {
+              "properties": {
+                "type": {
+                  "const": "human_attestation"
+                }
+              }
+            },
+            "contains": {
+              "properties": {
+                "type": {
+                  "const": "human_attestation"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "description": "intent_review findings cite intent_gap evidence, and only that.",
+      "if": {
+        "properties": {
+          "method": {
+            "const": "intent_review"
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "evidence": {
+            "items": {
+              "properties": {
+                "type": {
+                  "const": "intent_gap"
+                }
+              }
+            },
+            "contains": {
+              "properties": {
+                "type": {
+                  "const": "intent_gap"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  ],
+  "$defs": {
+    "location": {
+      "type": "object",
+      "required": [
+        "path",
+        "start_line"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "path": {
+          "type": "string",
+          "maxLength": 1024,
+          "pattern": "^(?![/\\\\])(?![A-Za-z]:)(?!.*(^|[/\\\\])\\.\\.([/\\\\]|$))[^\\u0000]+$",
+          "description": "Workspace-relative path. No leading slash, drive letter, or '..' segment: the server reads cited lines, and must never be pointed outside the workspace."
+        },
+        "start_line": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "end_line": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "content_sha256": {
+          "type": "string",
+          "pattern": "^[a-f0-9]{64}$",
+          "description": "Hash of the cited lines, so stale citations are detectable."
+        }
+      }
+    },
+    "validation": {
+      "enum": [
+        "unchecked",
+        "source_matched",
+        "rule_matched",
+        "structurally_linked",
+        "not_linked",
+        "reported",
+        "independently_reproduced",
+        "advisory_matched",
+        "attested"
+      ]
+    },
+    "evidence": {
+      "oneOf": [
+        {
+          "title": "Pack static rule matched",
+          "type": "object",
+          "required": [
+            "type",
+            "validation",
+            "pack_id",
+            "check_id",
+            "location"
+          ],
+          "additionalProperties": false,
+          "properties": {
+            "type": {
+              "const": "rule_match"
+            },
+            "validation": {
+              "const": "rule_matched"
+            },
+            "pack_id": {
+              "type": "string",
+              "pattern": "^[^\\u0000-\\u001f\\u007f-\\u009f]*$",
+              "maxLength": 512
+            },
+            "check_id": {
+              "type": "string",
+              "pattern": "^[^\\u0000-\\u001f\\u007f-\\u009f]*$",
+              "maxLength": 512
+            },
+            "location": {
+              "$ref": "#/$defs/location"
+            }
+          }
+        },
+        {
+          "title": "Pack-defined structural check (never agent-authored)",
+          "type": "object",
+          "required": [
+            "type",
+            "validation",
+            "pack_id",
+            "check_id",
+            "params"
+          ],
+          "additionalProperties": false,
+          "properties": {
+            "type": {
+              "const": "structural_link"
+            },
+            "validation": {
+              "enum": [
+                "structurally_linked",
+                "not_linked"
+              ]
+            },
+            "pack_id": {
+              "type": "string",
+              "pattern": "^[^\\u0000-\\u001f\\u007f-\\u009f]*$",
+              "maxLength": 512
+            },
+            "check_id": {
+              "type": "string",
+              "pattern": "^[^\\u0000-\\u001f\\u007f-\\u009f]*$",
+              "maxLength": 512
+            },
+            "params": {
+              "type": "object",
+              "additionalProperties": {
+                "type": "string",
+                "pattern": "^[^\\u0000-\\u001f\\u007f-\\u009f]*$",
+                "maxLength": 512
+              }
+            },
+            "location": {
+              "$ref": "#/$defs/location"
+            },
+            "binding_source": {
+              "enum": [
+                "static_discovery",
+                "agent_supplied",
+                "legacy_unspecified"
+              ]
+            },
+            "authentication_semantics": {
+              "const": "unverified"
+            }
+          }
+        },
+        {
+          "title": "Agent citation",
+          "type": "object",
+          "required": [
+            "type",
+            "validation",
+            "claim",
+            "location"
+          ],
+          "additionalProperties": false,
+          "properties": {
+            "type": {
+              "const": "agent_citation"
+            },
+            "validation": {
+              "enum": [
+                "unchecked",
+                "source_matched"
+              ]
+            },
+            "claim": {
+              "type": "string",
+              "pattern": "^[^\\u0000-\\u0008\\u000b-\\u001f\\u007f-\\u009f]*$",
+              "maxLength": 4000
+            },
+            "location": {
+              "$ref": "#/$defs/location"
+            }
+          }
+        },
+        {
+          "title": "Dependency advisory",
+          "type": "object",
+          "required": [
+            "type",
+            "validation",
+            "ecosystem",
+            "package",
+            "version_source"
+          ],
+          "additionalProperties": false,
+          "properties": {
+            "type": {
+              "const": "advisory"
+            },
+            "validation": {
+              "enum": [
+                "advisory_matched",
+                "unchecked"
+              ]
+            },
+            "ecosystem": {
+              "type": "string",
+              "pattern": "^[^\\u0000-\\u001f\\u007f-\\u009f]*$",
+              "maxLength": 512
+            },
+            "package": {
+              "type": "string",
+              "pattern": "^[^\\u0000-\\u001f\\u007f-\\u009f]*$",
+              "maxLength": 512
+            },
+            "version": {
+              "type": "string",
+              "pattern": "^[^\\u0000-\\u001f\\u007f-\\u009f]*$",
+              "maxLength": 512
+            },
+            "version_source": {
+              "enum": [
+                "lockfile",
+                "environment",
+                "pinned_manifest",
+                "unpinned_manifest"
+              ]
+            },
+            "advisory_id": {
+              "type": "string",
+              "pattern": "^[^\\u0000-\\u001f\\u007f-\\u009f]*$",
+              "maxLength": 512
+            }
+          },
+          "allOf": [
+            {
+              "description": "A matched advisory must name the resolved version and the advisory.",
+              "if": {
+                "properties": {
+                  "validation": {
+                    "const": "advisory_matched"
+                  }
+                }
+              },
+              "then": {
+                "required": [
+                  "version",
+                  "advisory_id"
+                ],
+                "properties": {
+                  "version": {
+                    "minLength": 1
+                  },
+                  "advisory_id": {
+                    "minLength": 1
+                  }
+                }
+              }
+            }
+          ]
+        },
+        {
+          "title": "Verification run",
+          "type": "object",
+          "required": [
+            "type",
+            "validation",
+            "run_id",
+            "scenario_ids"
+          ],
+          "additionalProperties": false,
+          "properties": {
+            "type": {
+              "const": "verification_run"
+            },
+            "validation": {
+              "enum": [
+                "reported",
+                "independently_reproduced"
+              ]
+            },
+            "run_id": {
+              "type": "string",
+              "pattern": "^[^\\u0000-\\u001f\\u007f-\\u009f]*$",
+              "maxLength": 512
+            },
+            "scenario_ids": {
+              "type": "array",
+              "minItems": 1,
+              "items": {
+                "type": "string",
+                "pattern": "^[^\\u0000-\\u001f\\u007f-\\u009f]*$",
+                "maxLength": 512
+              }
+            }
+          }
+        },
+        {
+          "title": "Intent gap",
+          "type": "object",
+          "required": [
+            "type",
+            "validation",
+            "reason"
+          ],
+          "additionalProperties": false,
+          "properties": {
+            "type": {
+              "const": "intent_gap"
+            },
+            "validation": {
+              "const": "unchecked"
+            },
+            "reason": {
+              "enum": [
+                "policy_unknown",
+                "policy_inferred_not_confirmed",
+                "endpoint_not_declared"
+              ]
+            }
+          }
+        },
+        {
+          "title": "Human attestation (must also exist in the server-owned trust ledger)",
+          "type": "object",
+          "required": [
+            "type",
+            "validation",
+            "attestation_id",
+            "reviewer",
+            "reviewed_tree_digest"
+          ],
+          "additionalProperties": false,
+          "properties": {
+            "type": {
+              "const": "human_attestation"
+            },
+            "validation": {
+              "const": "attested"
+            },
+            "attestation_id": {
+              "type": "string",
+              "pattern": "^[^\\u0000-\\u001f\\u007f-\\u009f]*$",
+              "maxLength": 512
+            },
+            "reviewer": {
+              "type": "string",
+              "pattern": "^[^\\u0000-\\u001f\\u007f-\\u009f]*$",
+              "maxLength": 512
+            },
+            "reviewed_tree_digest": {
+              "type": "string",
+              "pattern": "^[a-f0-9]{64}$"
+            }
+          }
+        }
+      ]
+    }
+  }
+}

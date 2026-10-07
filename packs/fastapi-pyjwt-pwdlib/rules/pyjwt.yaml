@@ -1,0 +1,26 @@
+rules:
+  # Triage, not proof. An unverified decode is a legitimate step when it only
+  # reads a claim (for example `iss`) to select a key before a verified decode.
+  # It becomes a bypass only if the unverified claims are trusted. A behavioral
+  # test (forged token) is what confirms or rules out the violation.
+  #
+  # Removed in 0.2.0: pyjwt-decode-without-algorithms. PyJWT >=2.0 raises
+  # DecodeError when `algorithms` is missing, so the pattern flags code that
+  # fails closed, not code that is insecure.
+  - id: pyjwt-verify-signature-disabled
+    languages: [python]
+    severity: WARNING
+    message: >-
+      jwt.decode() with signature verification disabled. Safe only if the
+      decoded claims are never trusted for identity or authorization.
+    metadata:
+      control_id: TOKEN-INTEGRITY
+    pattern-either:
+      - pattern: |
+          jwt.decode(..., options={..., "verify_signature": False, ...}, ...)
+      - pattern: |
+          jwt.decode($TOKEN, $KEY, $ALGS, {..., "verify_signature": False, ...}, ...)
+      - pattern: |
+          $OPTS = {..., "verify_signature": False, ...}
+          ...
+          jwt.decode(..., options=$OPTS, ...)

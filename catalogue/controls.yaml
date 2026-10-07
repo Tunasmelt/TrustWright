@@ -1,0 +1,49 @@
+# Core control catalogue (stack-neutral).
+# Intent requirements, findings, and pack capabilities all reference these IDs.
+# ASVS references are chapter-level on purpose; map to exact ASVS 5.0
+# requirement IDs against the published text before the first release.
+
+catalogue_version: "0.1"
+
+controls:
+  - id: AUTHN-ENDPOINT
+    title: Endpoint requires a valid authenticated principal
+    scope: endpoint
+    asvs: ["V6", "V7"]
+    note: Establishes identity only. Says nothing about access to a specific record.
+
+  - id: AUTHZ-OWNERSHIP
+    title: Principal may access only records they own
+    scope: endpoint
+    asvs: ["V8"]
+    note: Always a separate requirement from AUTHN-ENDPOINT.
+
+  - id: AUTHZ-ROLE
+    title: Endpoint restricted to a named role
+    scope: endpoint
+    asvs: ["V8"]
+
+  - id: TOKEN-INTEGRITY
+    title: Self-contained tokens are signature-verified with pinned algorithms
+    scope: codebase
+    asvs: ["V9"]
+
+  - id: TOKEN-CLAIMS
+    title: Token expiry and audience are validated
+    scope: codebase
+    asvs: ["V9"]
+
+  - id: PASSWORD-STORAGE
+    title: Passwords use a slow, salted password hash with adequate parameters
+    scope: codebase
+    asvs: ["V6", "V11"]
+
+  - id: SECRETS-HARDCODED
+    title: No secrets committed to source
+    scope: codebase
+    asvs: ["V13"]
+
+  - id: DEPENDENCY-ADVISORY
+    title: Auth and crypto dependencies have no applicable known advisories
+    scope: codebase
+    asvs: ["V15"]

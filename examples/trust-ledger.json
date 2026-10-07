@@ -1,0 +1,53 @@
+{
+  "schema_version": "0.4",
+  "observed_runs": [
+    {
+      "run_id": "RUN-001",
+      "record_digest": "ed5b4ca980be38f8ef97abefcdf7e35ffb26c9a7667a66fcfa3209211741010e",
+      "observed_at": "2026-10-07T10:10:47Z"
+    },
+    {
+      "run_id": "RUN-003",
+      "record_digest": "30eeca2a06b7896282735f0d9b6a7c97d51272283ae01e71e69f21b9b431d0fb",
+      "observed_at": "2026-10-07T10:10:50Z"
+    }
+  ],
+  "intent_confirmations": [
+    {
+      "endpoint_id": "health",
+      "requirement_id": "health-public",
+      "requirement_digest": "743474b01b606c4890cedc9b195cc8078813951bb38ba14836151195f3e5f106",
+      "request_id": "confirm-743474b01b606c4890cedc9b195cc807",
+      "confirmed_by": "harris",
+      "confirmed_at": "2026-10-05T09:00:00Z",
+      "channel": "mcp_form_elicitation"
+    },
+    {
+      "endpoint_id": "read-document",
+      "requirement_id": "read-document-authn",
+      "requirement_digest": "7c7c4dbff92bafdae9d83985202dca43bb682b9048a92d0043e4993e84a61bde",
+      "request_id": "confirm-7c7c4dbff92bafdae9d83985202dca43",
+      "confirmed_by": "harris",
+      "confirmed_at": "2026-10-05T09:00:00Z",
+      "channel": "mcp_form_elicitation"
+    },
+    {
+      "endpoint_id": "read-document",
+      "requirement_id": "read-document-owner",
+      "requirement_digest": "1d6da3acd77df4a82f110604a501207bbd375b4391d87f72ec439f114e360467",
+      "request_id": "confirm-1d6da3acd77df4a82f110604a501207b",
+      "confirmed_by": "harris",
+      "confirmed_at": "2026-10-05T09:00:00Z",
+      "channel": "mcp_form_elicitation"
+    }
+  ],
+  "human_attestations": [
+    {
+      "attestation_id": "ATT-001",
+      "finding_id": "F-009",
+      "reviewer": "harris",
+      "subject_digest": "71268a1db77211efdbdedcc2dc567beb82044374a214034a03e54ef69abac1ff",
+      "attested_at": "2026-10-07T10:10:50Z"
+    }
+  ]
+}

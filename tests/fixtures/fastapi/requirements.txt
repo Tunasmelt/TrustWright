@@ -1,0 +1,3 @@
+fastapi==0.142.2
+PyJWT==2.15.1
+pwdlib==0.3.0

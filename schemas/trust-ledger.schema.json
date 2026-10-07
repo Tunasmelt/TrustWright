@@ -1,0 +1,139 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "trust-ledger.schema.json",
+  "title": "Trust ledger (server-owned)",
+  "description": "Facts only the MCP server may assert, each bound to a digest of the exact content it vouches for. Kept in server state outside the agent-writable workspace; documents can claim a trust level, but only a ledger entry whose digest matches their current content grants it.",
+  "type": "object",
+  "required": [
+    "schema_version",
+    "observed_runs",
+    "intent_confirmations",
+    "human_attestations"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "schema_version": {
+      "const": "0.4"
+    },
+    "observed_runs": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "run_id",
+          "record_digest",
+          "observed_at"
+        ],
+        "additionalProperties": false,
+        "properties": {
+          "run_id": {
+            "type": "string",
+            "pattern": "^[^\\u0000-\\u001f\\u007f-\\u009f]*$",
+            "maxLength": 512
+          },
+          "record_digest": {
+            "type": "string",
+            "pattern": "^[a-f0-9]{64}$",
+            "description": "run_record_digest(): the whole run document, including every scenario outcome and observed status."
+          },
+          "observed_at": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      }
+    },
+    "intent_confirmations": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "endpoint_id",
+          "requirement_id",
+          "requirement_digest",
+          "confirmed_by",
+          "confirmed_at",
+          "channel",
+          "request_id"
+        ],
+        "additionalProperties": false,
+        "properties": {
+          "endpoint_id": {
+            "type": "string",
+            "pattern": "^[^\\u0000-\\u001f\\u007f-\\u009f]*$",
+            "maxLength": 512
+          },
+          "requirement_id": {
+            "type": "string",
+            "pattern": "^[^\\u0000-\\u001f\\u007f-\\u009f]*$",
+            "maxLength": 512
+          },
+          "confirmed_by": {
+            "type": "string",
+            "pattern": "^[^\\u0000-\\u001f\\u007f-\\u009f]*$",
+            "maxLength": 512
+          },
+          "confirmed_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "channel": {
+            "enum": [
+              "mcp_form_elicitation",
+              "cli_prompt"
+            ]
+          },
+          "requirement_digest": {
+            "type": "string",
+            "pattern": "^[a-f0-9]{64}$",
+            "description": "requirement_digest(): endpoint method and path, requirement, policy, and any resource or role it references."
+          },
+          "request_id": {
+            "type": "string",
+            "pattern": "^confirm-[a-f0-9]{32}$"
+          }
+        }
+      }
+    },
+    "human_attestations": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "attestation_id",
+          "finding_id",
+          "reviewer",
+          "attested_at",
+          "subject_digest"
+        ],
+        "additionalProperties": false,
+        "properties": {
+          "attestation_id": {
+            "type": "string",
+            "pattern": "^[^\\u0000-\\u001f\\u007f-\\u009f]*$",
+            "maxLength": 512
+          },
+          "finding_id": {
+            "type": "string",
+            "pattern": "^[^\\u0000-\\u001f\\u007f-\\u009f]*$",
+            "maxLength": 512
+          },
+          "reviewer": {
+            "type": "string",
+            "pattern": "^[^\\u0000-\\u001f\\u007f-\\u009f]*$",
+            "maxLength": 512
+          },
+          "attested_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "subject_digest": {
+            "type": "string",
+            "pattern": "^[a-f0-9]{64}$",
+            "description": "attestation_subject_digest(): the conclusion, scope, limitations, requirement, and reviewed code snapshot."
+          }
+        }
+      }
+    }
+  }
+}

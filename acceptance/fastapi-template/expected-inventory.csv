@@ -1,0 +1,24 @@
+method,path,file,mounted_when,protection_as_written,dependency_as_written,runtime_dependency_tree,openapi_security,intended_policy
+GET,/api/v1/items/,backend/app/api/routes/items.py,always,parameter alias,"CurrentUser -> Annotated[User, Depends(get_current_user)] (deps.py)",get_db > get_current_user > OAuth2PasswordBearer,OAuth2PasswordBearer,authenticated
+POST,/api/v1/items/,backend/app/api/routes/items.py,always,parameter alias,CurrentUser,get_db > get_current_user > OAuth2PasswordBearer,OAuth2PasswordBearer,authenticated
+DELETE,/api/v1/items/{id},backend/app/api/routes/items.py,always,parameter alias,CurrentUser,get_db > get_current_user > OAuth2PasswordBearer,OAuth2PasswordBearer,authenticated
+GET,/api/v1/items/{id},backend/app/api/routes/items.py,always,parameter alias,CurrentUser,get_db > get_current_user > OAuth2PasswordBearer,OAuth2PasswordBearer,authenticated
+PUT,/api/v1/items/{id},backend/app/api/routes/items.py,always,parameter alias,CurrentUser,get_db > get_current_user > OAuth2PasswordBearer,OAuth2PasswordBearer,authenticated
+POST,/api/v1/login/access-token,backend/app/api/routes/login.py,always,none,,get_db > OAuth2PasswordRequestForm,none,public
+POST,/api/v1/login/test-token,backend/app/api/routes/login.py,always,parameter alias,CurrentUser,get_current_user > get_db > OAuth2PasswordBearer,OAuth2PasswordBearer,authenticated
+POST,/api/v1/password-recovery-html-content/{email},backend/app/api/routes/login.py,always,decorator dependencies,get_current_active_superuser,get_current_active_superuser > get_current_user > get_db > OAuth2PasswordBearer,OAuth2PasswordBearer,role(superuser)
+POST,/api/v1/password-recovery/{email},backend/app/api/routes/login.py,always,none,,get_db,none,public
+POST,/api/v1/private/users/,backend/app/api/routes/private.py,"FASTAPI_ENV == ""development"" (repo .env default; unset in production)",none,,get_db,none,public (dev only)
+POST,/api/v1/reset-password/,backend/app/api/routes/login.py,always,none,,get_db,none,public
+GET,/api/v1/users/,backend/app/api/routes/users.py,always,decorator dependencies,get_current_active_superuser,get_current_active_superuser > get_current_user > get_db > OAuth2PasswordBearer,OAuth2PasswordBearer,role(superuser)
+POST,/api/v1/users/,backend/app/api/routes/users.py,always,decorator dependencies,get_current_active_superuser,get_current_active_superuser > get_current_user > get_db > OAuth2PasswordBearer,OAuth2PasswordBearer,role(superuser)
+DELETE,/api/v1/users/me,backend/app/api/routes/users.py,always,parameter alias,CurrentUser,get_db > get_current_user > OAuth2PasswordBearer,OAuth2PasswordBearer,authenticated
+GET,/api/v1/users/me,backend/app/api/routes/users.py,always,parameter alias,CurrentUser,get_current_user > get_db > OAuth2PasswordBearer,OAuth2PasswordBearer,authenticated
+PATCH,/api/v1/users/me,backend/app/api/routes/users.py,always,parameter alias,CurrentUser,get_db > get_current_user > OAuth2PasswordBearer,OAuth2PasswordBearer,authenticated
+PATCH,/api/v1/users/me/password,backend/app/api/routes/users.py,always,parameter alias,CurrentUser,get_db > get_current_user > OAuth2PasswordBearer,OAuth2PasswordBearer,authenticated
+POST,/api/v1/users/signup,backend/app/api/routes/users.py,always,none,,get_db,none,public
+DELETE,/api/v1/users/{user_id},backend/app/api/routes/users.py,always,decorator dependencies + parameter alias,get_current_active_superuser; CurrentUser,get_current_active_superuser > get_current_user > get_db > OAuth2PasswordBearer,OAuth2PasswordBearer,role(superuser)
+GET,/api/v1/users/{user_id},backend/app/api/routes/users.py,always,parameter alias,CurrentUser,get_db > get_current_user > OAuth2PasswordBearer,OAuth2PasswordBearer,authenticated
+PATCH,/api/v1/users/{user_id},backend/app/api/routes/users.py,always,decorator dependencies,get_current_active_superuser,get_current_active_superuser > get_current_user > get_db > OAuth2PasswordBearer,OAuth2PasswordBearer,role(superuser)
+GET,/api/v1/utils/health-check/,backend/app/api/routes/utils.py,always,none,,,none,public
+POST,/api/v1/utils/test-email/,backend/app/api/routes/utils.py,always,decorator dependencies,get_current_active_superuser,get_current_active_superuser > get_current_user > get_db > OAuth2PasswordBearer,OAuth2PasswordBearer,role(superuser)

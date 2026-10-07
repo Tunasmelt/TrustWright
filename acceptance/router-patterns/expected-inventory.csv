@@ -1,0 +1,14 @@
+case,method,path,mounted_when,runtime_dependency_tree,openapi_security,expected_static_handling
+P01 app route + inline Annotated,GET,/whoami,always,get_current_user > OAuth2PasswordBearer,OAuth2PasswordBearer,discovered; dependency_ref get_current_user
+P02 app route no deps,GET,/health,always,,none,discovered; no dependency_ref
+P03 router prefix + include prefix from module constant + imported alias + local Security alias,GET,/api/reports/,always,get_db > get_scoped_user > OAuth2PasswordBearer,OAuth2PasswordBearer,discovered; path composed '/api'+'/reports'+'/'; dependency_refs get_db and get_scoped_user (Security counts as a dependency)
+P04 api_route with literal methods (GET),GET,/api/reports/export,always,get_db,none,discovered; dependency_ref get_db only (R-01: a reference is not authentication)
+P05 api_route with literal methods (POST),POST,/api/reports/export,always,get_db,none,discovered; same as P04
+P06 nested routers + router-level dependencies + import aliases,GET,/api/admin/users/,always,require_admin > get_current_user > OAuth2PasswordBearer > get_db,OAuth2PasswordBearer,discovered; path '/api'+'/admin'+'/users'+'/'; dependency_refs require_admin (router-level) and get_db
+P07 nested routers (path param),DELETE,/api/admin/users/{user_id},always,require_admin > get_current_user > OAuth2PasswordBearer > get_db,OAuth2PasswordBearer,discovered; as P06
+P08 module-attribute alias + include_router dependencies + concatenated prefix,GET,/api/profile/me,always,get_current_user > OAuth2PasswordBearer,OAuth2PasswordBearer,discovered; path '/api'+'/profile'+'/me'; dependency_ref get_current_user (from deps.User and from include_router)
+P09 computed decorator dependencies,GET,/api/profile/settings,always,get_current_user > OAuth2PasswordBearer > get_db,OAuth2PasswordBearer,discovered; include-level get_current_user and alias get_db found; decorator 'dependencies=' reported unresolved (binding_unresolved: non-literal expression) - never silently dropped
+P10 add_api_route in a loop + env-derived prefix,GET,/ext/plugins/alpha,always (prefix env-dependent),,none,NOT invented; reported as unresolved_dynamic_route for svc/api/dynamic.py and unresolved_prefix (os.environ.get with default)
+P11 same loop,GET,/ext/plugins/beta,always (prefix env-dependent),,none,as P10
+P12 conditional import + include,POST,/debug/reset,ENABLE_DEBUG == "1",,none,discovered and marked conditional (mounted_when unresolved condition); not reported as always mounted
+P13 router never included,GET,/never-mounted,never,,,must NOT appear as a mounted endpoint (may be listed as an unmounted router)

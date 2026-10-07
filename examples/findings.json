@@ -1,0 +1,320 @@
+[
+  {
+    "id": "F-001",
+    "control_id": "TOKEN-INTEGRITY",
+    "intent_ref": null,
+    "scope": {
+      "kind": "function",
+      "ref": "app/auth.py::get_current_user",
+      "locations": [
+        {
+          "path": "app/auth.py",
+          "start_line": 31,
+          "end_line": 31,
+          "content_sha256": "a18529282bbf138f205e5bebe7823800b2c5520fedc87aff13e9d648132e2c1a"
+        }
+      ]
+    },
+    "result": "unknown",
+    "method": "static_rule",
+    "evidence": [
+      {
+        "type": "rule_match",
+        "validation": "rule_matched",
+        "pack_id": "fastapi-pyjwt-pwdlib",
+        "check_id": "token-verify-disabled",
+        "location": {
+          "path": "app/auth.py",
+          "start_line": 31,
+          "content_sha256": "a18529282bbf138f205e5bebe7823800b2c5520fedc87aff13e9d648132e2c1a"
+        }
+      }
+    ],
+    "display": {
+      "outcome": "needs_review",
+      "status": "pattern_matched"
+    },
+    "limitations": [
+      "An unverified decode is safe if its claims are never trusted; F-007 tests whether they are"
+    ],
+    "recipe_ref": {
+      "pack_id": "fastapi-pyjwt-pwdlib",
+      "recipe_id": "verify-token"
+    }
+  },
+  {
+    "id": "F-002",
+    "control_id": "AUTHN-ENDPOINT",
+    "intent_ref": {
+      "endpoint_id": "read-document",
+      "requirement_id": "read-document-authn"
+    },
+    "scope": {
+      "kind": "endpoint",
+      "ref": "GET /documents/{doc_id}"
+    },
+    "result": "unknown",
+    "method": "structural_check",
+    "evidence": [
+      {
+        "type": "structural_link",
+        "validation": "structurally_linked",
+        "pack_id": "fastapi-pyjwt-pwdlib",
+        "check_id": "route-depends-on",
+        "params": {
+          "method": "get",
+          "path": "/documents/{doc_id}",
+          "dependency": "get_current_user"
+        },
+        "location": {
+          "path": "app/routes/documents.py",
+          "start_line": 14
+        }
+      }
+    ],
+    "display": {
+      "outcome": "needs_review",
+      "status": "structurally_linked"
+    },
+    "limitations": [
+      "Handler references get_current_user; does not show every path is protected or that failures stop execution",
+      "Says nothing about which documents the user may read (see AUTHZ-OWNERSHIP)"
+    ]
+  },
+  {
+    "id": "F-007",
+    "control_id": "AUTHN-ENDPOINT",
+    "intent_ref": {
+      "endpoint_id": "read-document",
+      "requirement_id": "read-document-authn"
+    },
+    "scope": {
+      "kind": "test_scenario",
+      "ref": "GET /documents/{doc_id} before fix: valid, missing, expired, forged token"
+    },
+    "result": "violated",
+    "method": "behavioral_test",
+    "severity": "critical",
+    "evidence": [
+      {
+        "type": "verification_run",
+        "validation": "independently_reproduced",
+        "run_id": "RUN-001",
+        "scenario_ids": [
+          "valid-token",
+          "missing-token",
+          "expired-token",
+          "bad-signature"
+        ]
+      }
+    ],
+    "display": {
+      "outcome": "issue_found",
+      "status": "reproduced"
+    },
+    "limitations": [
+      "Forged and expired tokens were accepted (200); the valid-token control passed, so the app itself works",
+      "Covers the four listed token scenarios only",
+      "Holds under the template's response assumptions: the endpoint's own first response, redirects not followed"
+    ],
+    "recipe_ref": {
+      "pack_id": "fastapi-pyjwt-pwdlib",
+      "recipe_id": "verify-token"
+    }
+  },
+  {
+    "id": "F-003",
+    "control_id": "AUTHN-ENDPOINT",
+    "intent_ref": {
+      "endpoint_id": "read-document",
+      "requirement_id": "read-document-authn"
+    },
+    "scope": {
+      "kind": "test_scenario",
+      "ref": "GET /documents/{doc_id} after fix: valid, missing, expired, forged token"
+    },
+    "result": "satisfied",
+    "method": "behavioral_test",
+    "evidence": [
+      {
+        "type": "verification_run",
+        "validation": "reported",
+        "run_id": "RUN-002",
+        "scenario_ids": [
+          "valid-token",
+          "missing-token",
+          "expired-token",
+          "bad-signature"
+        ]
+      }
+    ],
+    "display": {
+      "outcome": "test_passed",
+      "status": "reported"
+    },
+    "limitations": [
+      "Run by the agent; the server did not observe execution",
+      "Covers the four listed token scenarios only",
+      "Holds under the template's response assumptions: the endpoint's own first response, redirects not followed"
+    ]
+  },
+  {
+    "id": "F-004",
+    "control_id": "AUTHN-ENDPOINT",
+    "intent_ref": {
+      "endpoint_id": "read-document",
+      "requirement_id": "read-document-authn"
+    },
+    "scope": {
+      "kind": "test_scenario",
+      "ref": "GET /documents/{doc_id} after fix: valid, missing, expired, forged token"
+    },
+    "result": "satisfied",
+    "method": "behavioral_test",
+    "evidence": [
+      {
+        "type": "verification_run",
+        "validation": "independently_reproduced",
+        "run_id": "RUN-003",
+        "scenario_ids": [
+          "valid-token",
+          "missing-token",
+          "expired-token",
+          "bad-signature"
+        ]
+      }
+    ],
+    "display": {
+      "outcome": "check_passed",
+      "status": "reproduced"
+    },
+    "limitations": [
+      "Covers the four listed token scenarios only",
+      "Authentication only: ownership is a separate requirement",
+      "Holds under the template's response assumptions: the endpoint's own first response, redirects not followed"
+    ]
+  },
+  {
+    "id": "F-005",
+    "control_id": "AUTHZ-OWNERSHIP",
+    "intent_ref": {
+      "endpoint_id": "read-document",
+      "requirement_id": "read-document-owner"
+    },
+    "scope": {
+      "kind": "endpoint",
+      "ref": "GET /documents/{doc_id}"
+    },
+    "result": "unknown",
+    "method": "agent_review",
+    "evidence": [
+      {
+        "type": "agent_citation",
+        "validation": "source_matched",
+        "claim": "Query filters by Document.owner_id == user['id'] before returning the record",
+        "location": {
+          "path": "app/routes/documents.py",
+          "start_line": 19,
+          "content_sha256": "22b7cf544264ec769eca1ac90acbefac6eed103e30458c88f5f29f6b4989eb9d"
+        }
+      }
+    ],
+    "display": {
+      "outcome": "needs_review",
+      "status": "agent_assessed"
+    },
+    "limitations": [
+      "Cited line exists and matches; the filter is not verified on every path",
+      "No behavioral test: another user's document was not actually requested"
+    ]
+  },
+  {
+    "id": "F-009",
+    "control_id": "AUTHZ-OWNERSHIP",
+    "intent_ref": {
+      "endpoint_id": "read-document",
+      "requirement_id": "read-document-owner"
+    },
+    "scope": {
+      "kind": "endpoint",
+      "ref": "GET /documents/{doc_id}: ownership filter in documents.py"
+    },
+    "result": "satisfied",
+    "method": "human_review",
+    "evidence": [
+      {
+        "type": "human_attestation",
+        "validation": "attested",
+        "attestation_id": "ATT-001",
+        "reviewer": "harris",
+        "reviewed_tree_digest": "274b9a48f0ae6014f4843bcc9d47998ab88085e657d49bf5e5c317b0f4e0fc12"
+      }
+    ],
+    "display": {
+      "outcome": "check_passed",
+      "status": "human_reviewed"
+    },
+    "limitations": [
+      "Human code review, not a behavioral test; re-review after changes to documents.py"
+    ]
+  },
+  {
+    "id": "F-006",
+    "control_id": "AUTHN-ENDPOINT",
+    "intent_ref": {
+      "endpoint_id": "export",
+      "requirement_id": "export-authn"
+    },
+    "scope": {
+      "kind": "endpoint",
+      "ref": "GET /exports"
+    },
+    "result": "unknown",
+    "method": "intent_review",
+    "evidence": [
+      {
+        "type": "intent_gap",
+        "validation": "unchecked",
+        "reason": "policy_unknown"
+      }
+    ],
+    "display": {
+      "outcome": "unknown",
+      "status": "intent_missing"
+    },
+    "limitations": [
+      "No auth dependency found, but intent is unconfirmed: neither a pass nor a violation until the developer says whether /exports is public"
+    ]
+  },
+  {
+    "id": "F-008",
+    "control_id": "DEPENDENCY-ADVISORY",
+    "intent_ref": null,
+    "scope": {
+      "kind": "dependency",
+      "ref": "python-jose 3.3.0 (uv.lock)"
+    },
+    "result": "violated",
+    "method": "dependency_advisory",
+    "severity": "medium",
+    "evidence": [
+      {
+        "type": "advisory",
+        "validation": "advisory_matched",
+        "ecosystem": "PyPI",
+        "package": "python-jose",
+        "version": "3.3.0",
+        "version_source": "lockfile",
+        "advisory_id": "CVE-2024-33663"
+      }
+    ],
+    "display": {
+      "outcome": "issue_found",
+      "status": "confirmed"
+    },
+    "limitations": [
+      "The advisory applies to the installed version; exploitability depends on how the library is used",
+      "Fixed in 3.4.0, but later reports describe an incomplete fix through 3.5.0; prefer removing the unused package"
+    ]
+  }
+]

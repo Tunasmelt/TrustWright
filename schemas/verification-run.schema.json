@@ -1,0 +1,404 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "verification-run.schema.json",
+  "title": "Verification run",
+  "description": "What code and tests ran, where, and with what results. Results are 'reported' unless the server itself observed execution.",
+  "type": "object",
+  "required": [
+    "schema_version",
+    "run_id",
+    "created_at",
+    "workspace_snapshot",
+    "test_artifact",
+    "runner",
+    "results_artifact",
+    "consistency_checks",
+    "evidence_validation",
+    "scenarios"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "schema_version": {
+      "const": "0.4"
+    },
+    "run_id": {
+      "type": "string",
+      "pattern": "^RUN-[0-9]{3,}$"
+    },
+    "created_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "workspace_snapshot": {
+      "description": "Digest of the actual working tree, including uncommitted and untracked files. A commit SHA alone would miss local edits.",
+      "type": "object",
+      "required": [
+        "head_commit",
+        "has_uncommitted_changes",
+        "tree_digest"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "head_commit": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "pattern": "^[a-f0-9]{40}$"
+        },
+        "has_uncommitted_changes": {
+          "type": "boolean"
+        },
+        "tree_digest": {
+          "type": "object",
+          "required": [
+            "algorithm",
+            "value",
+            "file_count",
+            "includes_untracked"
+          ],
+          "additionalProperties": false,
+          "properties": {
+            "algorithm": {
+              "const": "sha256-sorted-entries-v2",
+              "description": "See tools/digest.py: files by content hash, symlinks by target; escaping symlinks are refused."
+            },
+            "value": {
+              "type": "string",
+              "pattern": "^[a-f0-9]{64}$"
+            },
+            "file_count": {
+              "type": "integer",
+              "minimum": 1
+            },
+            "includes_untracked": {
+              "type": "boolean"
+            }
+          }
+        }
+      }
+    },
+    "test_artifact": {
+      "type": "object",
+      "required": [
+        "path",
+        "sha256",
+        "template"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "path": {
+          "type": "string",
+          "pattern": "^[^\\u0000-\\u001f\\u007f-\\u009f]*$",
+          "maxLength": 512
+        },
+        "sha256": {
+          "type": "string",
+          "pattern": "^[a-f0-9]{64}$"
+        },
+        "template": {
+          "type": "object",
+          "required": [
+            "pack_id",
+            "template_id",
+            "template_version"
+          ],
+          "additionalProperties": false,
+          "properties": {
+            "pack_id": {
+              "type": "string",
+              "pattern": "^[^\\u0000-\\u001f\\u007f-\\u009f]*$",
+              "maxLength": 512
+            },
+            "template_id": {
+              "type": "string",
+              "pattern": "^[^\\u0000-\\u001f\\u007f-\\u009f]*$",
+              "maxLength": 512
+            },
+            "template_version": {
+              "type": "string",
+              "pattern": "^[^\\u0000-\\u001f\\u007f-\\u009f]*$",
+              "maxLength": 512
+            }
+          }
+        }
+      }
+    },
+    "runner": {
+      "type": "object",
+      "required": [
+        "kind",
+        "command",
+        "observed_by_server"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "kind": {
+          "enum": [
+            "agent_reported",
+            "controlled_runner"
+          ]
+        },
+        "command": {
+          "type": "string",
+          "pattern": "^[^\\u0000-\\u001f\\u007f-\\u009f]*$",
+          "maxLength": 512
+        },
+        "observed_by_server": {
+          "type": "boolean"
+        },
+        "environment": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "string",
+            "pattern": "^[^\\u0000-\\u001f\\u007f-\\u009f]*$",
+            "maxLength": 512
+          },
+          "description": "Interpreter, OS, and relevant package versions as captured."
+        }
+      }
+    },
+    "results_artifact": {
+      "type": "object",
+      "required": [
+        "format",
+        "path",
+        "sha256",
+        "modified_at"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "format": {
+          "enum": [
+            "junit_xml"
+          ]
+        },
+        "path": {
+          "type": "string",
+          "pattern": "^[^\\u0000-\\u001f\\u007f-\\u009f]*$",
+          "maxLength": 512
+        },
+        "sha256": {
+          "type": "string",
+          "pattern": "^[a-f0-9]{64}$"
+        },
+        "modified_at": {
+          "type": "string",
+          "format": "date-time"
+        }
+      }
+    },
+    "consistency_checks": {
+      "description": "Cheap signals that a reported artifact belongs to this run. Passing them does not upgrade the result beyond 'reported'.",
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "check",
+          "passed"
+        ],
+        "additionalProperties": false,
+        "properties": {
+          "check": {
+            "enum": [
+              "results_newer_than_test_artifact",
+              "testcase_names_match_template",
+              "testcase_count_matches_template",
+              "snapshot_matches_current_workspace"
+            ]
+          },
+          "passed": {
+            "type": "boolean"
+          },
+          "detail": {
+            "type": "string",
+            "pattern": "^[^\\u0000-\\u0008\\u000b-\\u001f\\u007f-\\u009f]*$",
+            "maxLength": 4000
+          }
+        }
+      }
+    },
+    "evidence_validation": {
+      "enum": [
+        "reported",
+        "independently_reproduced"
+      ]
+    },
+    "scenarios": {
+      "type": "array",
+      "minItems": 2,
+      "items": {
+        "type": "object",
+        "required": [
+          "id",
+          "intent_ref",
+          "control_role",
+          "principal",
+          "expect_status",
+          "outcome",
+          "junit_testcase"
+        ],
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "type": "string",
+            "pattern": "^[^\\u0000-\\u001f\\u007f-\\u009f]*$",
+            "maxLength": 512
+          },
+          "intent_ref": {
+            "type": "object",
+            "required": [
+              "endpoint_id",
+              "requirement_id"
+            ],
+            "additionalProperties": false,
+            "properties": {
+              "endpoint_id": {
+                "type": "string",
+                "pattern": "^[^\\u0000-\\u001f\\u007f-\\u009f]*$",
+                "maxLength": 512
+              },
+              "requirement_id": {
+                "type": "string",
+                "pattern": "^[^\\u0000-\\u001f\\u007f-\\u009f]*$",
+                "maxLength": 512
+              }
+            }
+          },
+          "control_role": {
+            "enum": [
+              "positive_control",
+              "negative_control"
+            ]
+          },
+          "principal": {
+            "type": "string",
+            "pattern": "^[^\\u0000-\\u001f\\u007f-\\u009f]*$",
+            "maxLength": 512
+          },
+          "expect_status": {
+            "type": "integer"
+          },
+          "observed_status": {
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "outcome": {
+            "enum": [
+              "passed",
+              "failed",
+              "skipped",
+              "error"
+            ]
+          },
+          "junit_testcase": {
+            "type": "string",
+            "pattern": "^[^\\u0000-\\u001f\\u007f-\\u009f]*$",
+            "maxLength": 512
+          }
+        },
+        "allOf": [
+          {
+            "description": "A passed or failed status assertion must record the status actually observed.",
+            "if": {
+              "properties": {
+                "outcome": {
+                  "enum": [
+                    "passed",
+                    "failed"
+                  ]
+                }
+              }
+            },
+            "then": {
+              "properties": {
+                "observed_status": {
+                  "type": "integer"
+                }
+              },
+              "required": [
+                "observed_status"
+              ]
+            }
+          }
+        ]
+      },
+      "allOf": [
+        {
+          "contains": {
+            "properties": {
+              "control_role": {
+                "const": "positive_control"
+              }
+            }
+          }
+        },
+        {
+          "contains": {
+            "properties": {
+              "control_role": {
+                "const": "negative_control"
+              }
+            }
+          }
+        }
+      ]
+    }
+  },
+  "allOf": [
+    {
+      "description": "An agent-run result is reported, never reproduced.",
+      "if": {
+        "properties": {
+          "runner": {
+            "properties": {
+              "kind": {
+                "const": "agent_reported"
+              }
+            }
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "runner": {
+            "properties": {
+              "observed_by_server": {
+                "const": false
+              }
+            }
+          },
+          "evidence_validation": {
+            "const": "reported"
+          }
+        }
+      }
+    },
+    {
+      "description": "Only a run the server observed may claim independent reproduction.",
+      "if": {
+        "properties": {
+          "evidence_validation": {
+            "const": "independently_reproduced"
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "runner": {
+            "properties": {
+              "kind": {
+                "const": "controlled_runner"
+              },
+              "observed_by_server": {
+                "const": true
+              }
+            }
+          }
+        }
+      }
+    }
+  ]
+}

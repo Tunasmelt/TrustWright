@@ -1,0 +1,39 @@
+# Parameterized structural check. The server substitutes __METHOD__, __PATH__,
+# and __DEPENDENCY__ after validating each value against the regex declared in
+# pack.yaml. Agents supply values only; they never author rule logic.
+#
+# A match establishes a structural link: the route's handler references the
+# dependency. It does NOT establish that every execution path is protected,
+# that failure stops execution, or that the user may access a given record.
+rules:
+  - id: fastapi-route-depends-on
+    languages: [python]
+    severity: INFO
+    message: Route __METHOD__ __PATH__ references dependency __DEPENDENCY__.
+    metadata:
+      control_id: AUTHN-ENDPOINT
+    pattern-either:
+      - pattern: |
+          @$APP.__METHOD__("__PATH__", ...)
+          def $FUNC(..., $ARG = Depends(__DEPENDENCY__), ...):
+            ...
+      - pattern: |
+          @$APP.__METHOD__("__PATH__", ...)
+          async def $FUNC(..., $ARG = Depends(__DEPENDENCY__), ...):
+            ...
+      - pattern: |
+          @$APP.__METHOD__("__PATH__", ...)
+          def $FUNC(..., $ARG: Annotated[$T, Depends(__DEPENDENCY__)], ...):
+            ...
+      - pattern: |
+          @$APP.__METHOD__("__PATH__", ...)
+          async def $FUNC(..., $ARG: Annotated[$T, Depends(__DEPENDENCY__)], ...):
+            ...
+      - pattern: |
+          @$APP.__METHOD__("__PATH__", ..., dependencies=[..., Depends(__DEPENDENCY__), ...], ...)
+          def $FUNC(...):
+            ...
+      - pattern: |
+          @$APP.__METHOD__("__PATH__", ..., dependencies=[..., Depends(__DEPENDENCY__), ...], ...)
+          async def $FUNC(...):
+            ...
