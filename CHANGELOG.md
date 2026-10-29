@@ -1,5 +1,12 @@
 # Changelog
 
+## Unreleased (toward 0.5.0)
+
+- T-03 (TW-04): every declared requirement appears once in `get_report`; confirmed requirements no check assessed
+  are *Unknown · Not assessed* with a reason. Endpoint coverage rows carry the requirement reference.
+- T-04 (TW-05): discovery problems carry distinct reasons; `source_parse_error` names the interpreter version.
+- Report contract 0.5.0 (TW-06). Fixture checksums checked by the test suite (TW-03).
+
 ## 0.4.3: renamed to TrustWright
 
 - Project renamed from authcheck to **TrustWright**: package `trustwright`, CLI `trustwright`, distribution
