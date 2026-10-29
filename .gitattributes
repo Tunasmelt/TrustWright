@@ -1,4 +1,6 @@
 # Keep LF everywhere: fixture SHA256SUMS and exact-line rule samples depend on byte-exact files.
 * text=auto eol=lf
+# Written by Python's csv module with CRLF row endings; SHA256SUMS pins those bytes (TW-03).
+acceptance/fastapi-template/expected-inventory.csv -text
 *.zip binary
 *.whl binary
