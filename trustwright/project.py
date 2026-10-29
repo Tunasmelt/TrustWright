@@ -2,6 +2,7 @@
 
 import ast
 import os
+import platform
 import re
 import tomllib
 from pathlib import Path
@@ -184,15 +185,24 @@ def detect(files):
 
 
 def routes(files):
+    """Return (routes, errors); each error names its file reference and one distinct reason."""
     result = []
     errors = []
     for file, raw in files.items():
         if not file.endswith(".py"):
             continue
+        ref = "file-" + digest(file)[:16]
+
+        def gap(reason):
+            errors.append({"scope_ref": ref, "reason": reason})
+
         try:
             tree = ast.parse(raw)
         except (SyntaxError, UnicodeError, ValueError, RecursionError):
-            errors.append("file-" + digest(file)[:16])
+            # Parseability depends on the interpreter (e.g. PEP 758 needs 3.14), so the version is part of the reason.
+            errors.append(
+                {"scope_ref": ref, "reason": "source_parse_error", "python_version": platform.python_version()}
+            )
             continue
         constructors = set()
         for item in tree.body:
@@ -238,7 +248,7 @@ def routes(files):
                     and isinstance(dec.func, ast.Attribute)
                     and dec.func.attr in {"api_route", "route", "websocket", "websocket_route"}
                 ):
-                    errors.append("file-" + digest(file)[:16])
+                    gap("unsupported_route_form")
                 if (
                     not isinstance(dec, ast.Call)
                     or not isinstance(dec.func, ast.Attribute)
@@ -246,19 +256,18 @@ def routes(files):
                     not in {"get", "post", "put", "patch", "delete", "head", "options"}
                 ):
                     continue
-                if (
-                    not dec.args
-                    or not isinstance(dec.args[0], ast.Constant)
-                    or not isinstance(dec.args[0].value, str)
-                ):
-                    errors.append("file-" + digest(file)[:16])
-                    continue
                 if not isinstance(dec.func.value, ast.Name) or dec.func.value.id not in apps:
-                    errors.append("file-" + digest(file)[:16])
+                    gap("unsupported_route_form")
+                    continue
+                if not dec.args:
+                    gap("unsupported_route_form")
+                    continue
+                if not isinstance(dec.args[0], ast.Constant) or not isinstance(dec.args[0].value, str):
+                    gap("unresolved_dynamic_route")
                     continue
                 path = dec.args[0].value
                 if not re.fullmatch(r"/[A-Za-z0-9_{}/.\-]*", path):
-                    errors.append("file-" + digest(file)[:16])
+                    gap("unsupported_route_form")
                     continue
                 for kw in dec.keywords:
                     if kw.arg == "dependencies":

@@ -109,10 +109,19 @@ the other three are MCP resource templates. Schema names omit `.schema.json`.
 
 ## Evidence, freshness and privacy
 
-Six contracts live in `schemas/`. The report contract is now `0.4.2`; the other
+Six contracts live in `schemas/`. The report contract is now `0.5.0`; the other
 schema-version-bearing documents remain `0.4`. The report contract contains assessment inputs and current/historical sections. Confirmation
-entries additionally require a unique `request_id` and the form/CLI channel. The original
-finding schema retains its existing shape; report projections embed it.
+entries additionally require a unique `request_id` and the form/CLI channel. The finding
+schema adds one method, `not_assessed`; report projections embed it.
+
+Every declared requirement appears in a report exactly once: a finding carrying its
+`intent_ref`, or an Unknown. Unconfirmed requirements are *Unknown · Intent missing*. A
+confirmed requirement no check assessed is *Unknown · Not assessed* with a reason
+(`not_assessed:route_not_resolved`, `…:dependency_binding_unresolved`,
+`…:no_applicable_check`, `…:check_not_run` or `…:no_current_assessment`). Endpoint coverage
+rows carry `endpoint_ref` and `requirement_ref`. Discovery gaps name a distinct reason;
+`source_parse_error` includes the interpreter's `python_version`, because parseability
+depends on it.
 
 Each assessment records digests of Python source, intent, effective confirmation records,
 pack files, dependency manifests, scanner version/binary, server configuration and explicit

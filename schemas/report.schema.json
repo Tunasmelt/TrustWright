@@ -2,7 +2,7 @@
   "type": "object",
   "properties": {
     "schema_version": {
-      "const": "0.4.2"
+      "const": "0.5.0"
     },
     "generated_at": {
       "type": "string",
@@ -297,6 +297,14 @@
                 "matches": {
                   "type": "integer",
                   "minimum": 0
+                },
+                "endpoint_ref": {
+                  "type": "string",
+                  "pattern": "^ref-[a-f0-9]{20}$"
+                },
+                "requirement_ref": {
+                  "type": "string",
+                  "pattern": "^ref-[a-f0-9]{20}$"
                 }
               },
               "required": [
@@ -501,6 +509,14 @@
                 "matches": {
                   "type": "integer",
                   "minimum": 0
+                },
+                "endpoint_ref": {
+                  "type": "string",
+                  "pattern": "^ref-[a-f0-9]{20}$"
+                },
+                "requirement_ref": {
+                  "type": "string",
+                  "pattern": "^ref-[a-f0-9]{20}$"
                 }
               },
               "required": [
@@ -617,7 +633,12 @@
           "reason": {
             "enum": [
               "endpoint_not_declared",
-              "route_discovery_incomplete"
+              "source_parse_error",
+              "unsupported_route_form",
+              "unresolved_import",
+              "unresolved_prefix",
+              "unresolved_dynamic_route",
+              "binding_unresolved"
             ]
           },
           "scope_ref": {
@@ -642,7 +663,24 @@
                 ]
               }
             }
+          },
+          "python_version": {
+            "type": "string",
+            "pattern": "^[0-9]+\\.[0-9]+\\.[0-9]+[A-Za-z0-9+.]*$",
+            "maxLength": 32
           }
+        },
+        "if": {
+          "properties": {
+            "reason": {
+              "const": "source_parse_error"
+            }
+          }
+        },
+        "then": {
+          "required": [
+            "python_version"
+          ]
         }
       }
     }
@@ -767,7 +805,8 @@
             "agent_review",
             "behavioral_test",
             "human_review",
-            "intent_review"
+            "intent_review",
+            "not_assessed"
           ]
         },
         "severity": {
@@ -813,7 +852,8 @@
                 "agent_assessed",
                 "intent_missing",
                 "version_unresolved",
-                "human_reviewed"
+                "human_reviewed",
+                "not_assessed"
               ]
             }
           }
@@ -965,6 +1005,30 @@
                 "properties": {
                   "status": {
                     "const": "intent_missing"
+                  }
+                }
+              }
+            }
+          }
+        },
+        {
+          "description": "A confirmed requirement that no check could assess can only ever produce Unknown.",
+          "if": {
+            "properties": {
+              "method": {
+                "const": "not_assessed"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "result": {
+                "const": "unknown"
+              },
+              "display": {
+                "properties": {
+                  "status": {
+                    "const": "not_assessed"
                   }
                 }
               }
@@ -1194,6 +1258,36 @@
                   "properties": {
                     "type": {
                       "const": "intent_gap"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        {
+          "description": "not_assessed findings cite assessment_gap evidence, and only that.",
+          "if": {
+            "properties": {
+              "method": {
+                "const": "not_assessed"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "evidence": {
+                "items": {
+                  "properties": {
+                    "type": {
+                      "const": "assessment_gap"
+                    }
+                  }
+                },
+                "contains": {
+                  "properties": {
+                    "type": {
+                      "const": "assessment_gap"
                     }
                   }
                 }
@@ -1498,6 +1592,33 @@
                     "policy_unknown",
                     "policy_inferred_not_confirmed",
                     "endpoint_not_declared"
+                  ]
+                }
+              }
+            },
+            {
+              "title": "Assessment gap (confirmed requirement that no check assessed)",
+              "type": "object",
+              "required": [
+                "type",
+                "validation",
+                "reason"
+              ],
+              "additionalProperties": false,
+              "properties": {
+                "type": {
+                  "const": "assessment_gap"
+                },
+                "validation": {
+                  "const": "unchecked"
+                },
+                "reason": {
+                  "enum": [
+                    "not_assessed:route_not_resolved",
+                    "not_assessed:dependency_binding_unresolved",
+                    "not_assessed:no_applicable_check",
+                    "not_assessed:check_not_run",
+                    "not_assessed:no_current_assessment"
                   ]
                 }
               }

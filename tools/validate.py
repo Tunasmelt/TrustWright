@@ -190,6 +190,8 @@ def derive_display(f: dict, checks: dict) -> tuple[str, str]:
         return ("needs_review", "agent_assessed")
     if method == "intent_review":
         return ("unknown", "intent_missing")
+    if method == "not_assessed":
+        return ("unknown", "not_assessed")
     if method == "behavioral_test":
         status = "reproduced" if validations == {"independently_reproduced"} else "reported"
         if result == "violated":

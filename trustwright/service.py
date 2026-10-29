@@ -236,7 +236,7 @@ class Service:
                     "excluded": sorted(EXCLUDED),
                     "engine": engine,
                     "caps": [500, 20_000_000, 1_000_000],
-                    "discovery": "direct-fastapi-v1",
+                    "discovery": "direct-fastapi-v2",
                 }
             ),
             "engine": engine,
@@ -286,6 +286,20 @@ class Service:
                     )
         return result
 
+    def not_assessed(self, ep, r, reason):
+        """A confirmed requirement no check assessed stays visible as Unknown, with the reason."""
+        return self.make_finding(
+            r["control_id"],
+            "not_assessed",
+            {"type": "assessment_gap", "validation": "unchecked", "reason": "not_assessed:" + reason},
+            {"kind": "endpoint", "ref": ep["id"]},
+            {"endpoint_id": ep["id"], "requirement_id": r["id"]},
+            ["No check assessed this confirmed requirement; this is not a pass."],
+        )
+
+    def requirement_refs(self, ep, r):
+        return {"endpoint_ref": self.ref(ep["id"]), "requirement_ref": self.ref(r["id"])}
+
     def run_checks(self, bindings=None):
         started = time.monotonic()
         files = snapshot(self.root)
@@ -296,7 +310,7 @@ class Service:
         findings = []
         coverage = []
         detected = detect(files)
-        discovered, parse_errors = routes(files)
+        discovered, discovery_errors = routes(files)
         supplied = {}
         for binding in bindings or []:
             ep, r = self.resolve(intent, binding["endpoint_ref"], binding["requirement_ref"])
@@ -307,15 +321,17 @@ class Service:
         with self.state.transaction() as state:
             state["active_bindings_digest"] = digest(bindings or [])
         inputs = self.input_state(files, intent, ledger, engine)
-        if parse_errors:
+        for reason in sorted({e["reason"] for e in discovery_errors}):
             coverage.append(
                 {
                     "check_id": "route-discovery",
                     "status": "error",
-                    "reason": "source_parse_error",
+                    "reason": reason,
                     "matches": 0,
                 }
             )
+        assessed = set()
+        gaps = {}
         applicable = PACK_ID in detected["applicable_packs"]
         for check in PACK["checks"]:
             tasks = []
@@ -344,8 +360,10 @@ class Service:
                                     if candidates
                                     else "route_not_resolved",
                                     "matches": 0,
+                                    **self.requirement_refs(ep, r),
                                 }
                             )
+                            gaps[(ep["id"], r["id"])] = "route_not_resolved"
                             continue
                         deps = {x["dependency"] for x in candidates if x["dependency"]}
                         if (ep["id"], r["id"]) in supplied:
@@ -357,8 +375,10 @@ class Service:
                                     "status": "not_run",
                                     "reason": "dependency_binding_unresolved",
                                     "matches": 0,
+                                    **self.requirement_refs(ep, r),
                                 }
                             )
+                            gaps[(ep["id"], r["id"])] = "dependency_binding_unresolved"
                             continue
                         tasks.append(
                             (
@@ -374,6 +394,7 @@ class Service:
             for ep, r, params in tasks:
                 if time.monotonic() - started > 180:
                     raise Refused("assessment_time_budget_exceeded")
+                refs = self.requirement_refs(ep, r) if ep is not None else {}
                 if not applicable or engine["status"] != "available":
                     coverage.append(
                         {
@@ -383,8 +404,13 @@ class Service:
                             if not applicable
                             else "scanner_unavailable",
                             "matches": 0,
+                            **refs,
                         }
                     )
+                    if ep is not None:
+                        gaps[(ep["id"], r["id"])] = (
+                            "no_applicable_check" if not applicable else "check_not_run"
+                        )
                     continue
                 try:
                     targets = files
@@ -415,8 +441,11 @@ class Service:
                             "status": "error",
                             "reason": str(e),
                             "matches": 0,
+                            **refs,
                         }
                     )
+                    if ep is not None:
+                        gaps[(ep["id"], r["id"])] = "check_not_run"
                     continue
                 coverage.append(
                     {
@@ -424,6 +453,7 @@ class Service:
                         "status": "completed",
                         "reason": "matches" if hits else "no_matches_not_a_pass",
                         "matches": len(hits),
+                        **refs,
                     }
                 )
                 if ep is None:
@@ -461,6 +491,7 @@ class Service:
                     )
                     if hits:
                         evidence["location"] = hits[0]
+                    assessed.add((ep["id"], r["id"]))
                     findings.append(
                         self.make_finding(
                             check["control_id"],
@@ -474,7 +505,12 @@ class Service:
                             ],
                         )
                     )
-        findings += self.unknowns(effective)
+        # One entry per confirmed requirement. Unconfirmed ones are reported live as intent Unknowns by get_report.
+        for ep in effective["endpoints"]:
+            for r in ep["requirements"]:
+                key = (ep["id"], r["id"])
+                if r["provenance"]["source"] == "confirmed" and key not in assessed:
+                    findings.append(self.not_assessed(ep, r, gaps.get(key, "no_applicable_check")))
         if validator.validate(bundle(effective, findings), ledger):
             raise Refused("generated_findings_invalid")
         # Abort on changing inputs. Scan findings only describe the immutable copied bytes.
@@ -582,7 +618,7 @@ class Service:
             }
             (current if a["inputs"] == inputs else historical).append(item)
         detected = detect(files)
-        discovered, parse_errors = routes(files)
+        discovered, discovery_errors = routes(files)
         declared = {(e["method"], e["path"]) for e in intent["endpoints"]}
         gaps = [
             {
@@ -593,23 +629,30 @@ class Service:
             for r in discovered
             if (r["method"], r["path"]) not in declared and ("ANY", r["path"]) not in declared
         ]
-        gaps += [
-            {
-                "reason": "route_discovery_incomplete",
-                "scope_ref": p,
-                "display": {"outcome": "unknown", "status": "not_assessed"},
-            }
-            for p in sorted(set(parse_errors))
-        ]
+        seen = set()
+        for e in sorted(discovery_errors, key=lambda e: (e["scope_ref"], e["reason"])):
+            if (e["scope_ref"], e["reason"]) in seen:
+                continue
+            seen.add((e["scope_ref"], e["reason"]))
+            gaps.append({**e, "display": {"outcome": "unknown", "status": "not_assessed"}})
+        unknowns = self.unknowns(effective)
+        if not current:
+            # Without a current assessment, confirmed requirements still appear once, as not assessed.
+            unknowns += [
+                self.not_assessed(ep, r, "no_current_assessment")
+                for ep in effective["endpoints"]
+                for r in ep["requirements"]
+                if r["provenance"]["source"] == "confirmed"
+            ]
         report = {
-            "schema_version": "0.4.2",
+            "schema_version": "0.5.0",
             "generated_at": now(),
             "assessment_inputs": inputs,
             "current": current[-1:],
             "historical": historical[-5:],
             "coverage_gaps": detected["uncovered_controls"],
             "discovery_gaps": gaps,
-            "unknowns": [self.public_finding(f) for f in self.unknowns(effective)],
+            "unknowns": [self.public_finding(f) for f in unknowns],
             "response_assumptions": [
                 "No HTTP requests or tests are run in M1a; pack behavioral response assumptions have not been evaluated."
             ],
